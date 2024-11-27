@@ -21,7 +21,12 @@ func main() {
 	dbpath := flag.String("dbpath", "/tmp/test.db", "sqlite db path")
 	flag.Parse()
 
-	logger := newFileLogger(*logpath)
+	var logger io.WriteCloser
+	if *transport == "stdio" {
+		logger = newFileLogger(*logpath)
+	} else {
+		logger = os.Stderr
+	}
 	defer logger.Close()
 	setLogger(logger)
 
@@ -32,11 +37,11 @@ func main() {
 	if *transport == "stdio" {
 		slog.Info("using stdio transport")
 		server = NewStdioServer(os.Stdin, os.Stdout)
-		server.Start(ctx)
-	} else {
-		slog.Error("sse transport not supported yet")
-		os.Exit(1)
+	} else if *transport == "sse" {
+		slog.Info("using sse transport")
+		server = NewSSEServer()
 	}
+	server.Start(ctx)
 	db, err := NewSQLite(*dbpath)
 	if err != nil {
 		slog.Error("failed to create sqlite db", "error", err)
